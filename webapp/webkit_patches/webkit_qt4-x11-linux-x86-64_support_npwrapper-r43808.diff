@@ -1,0 +1,13 @@
+Index: WebCore/plugins/qt/PluginViewQt.cpp
+===================================================================
+--- WebCore/plugins/qt/PluginViewQt.cpp	(revision 43808)
++++ WebCore/plugins/qt/PluginViewQt.cpp	(working copy)
+@@ -323,7 +323,7 @@
+ {
+     switch (variable) {
+     case NPNVToolkit:
+-        *static_cast<uint32*>(value) = 0;
++        *static_cast<uint32*>(value) = 2;
+         return NPERR_NO_ERROR;
+ 
+     case NPNVSupportsXEmbedBool:

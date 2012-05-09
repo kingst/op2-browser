@@ -1,0 +1,38 @@
+Index: WebCore/WebCore.pro
+===================================================================
+--- WebCore/WebCore.pro	(revision 48592)
++++ WebCore/WebCore.pro	(working copy)
+@@ -3141,7 +3141,7 @@ addExtraCompiler(domlut)
+ 
+ # GENERATOR 3: tokenizer (flex)
+ tokenizer.output = $${GENERATED_SOURCES_DIR}$${QMAKE_DIR_SEP}${QMAKE_FILE_BASE}.cpp
+-tokenizer.commands = flex -t < ${QMAKE_FILE_NAME} | perl $$PWD/css/maketokenizer > ${QMAKE_FILE_OUT}
++tokenizer.commands = flex -t ${QMAKE_FILE_NAME} | perl $$PWD/css/maketokenizer > ${QMAKE_FILE_OUT}
+ tokenizer.dependency_type = TYPE_C
+ tokenizer.input = TOKENIZER
+ tokenizer.CONFIG += target_predeps no_link
+Index: WebKitTools/DumpRenderTree/qt/DumpRenderTree.pro
+===================================================================
+--- WebKitTools/DumpRenderTree/qt/DumpRenderTree.pro	(revision 48592)
++++ WebKitTools/DumpRenderTree/qt/DumpRenderTree.pro	(working copy)
+@@ -3,6 +3,7 @@ CONFIG  -= app_bundle
+ 
+ include(../../../WebKit.pri)
+ INCLUDEPATH += /usr/include/freetype2
++INCLUDEPATH += /opt/local/include
+ INCLUDEPATH += ../../../JavaScriptCore
+ DESTDIR = ../../../bin
+ 
+Index: WebKitTools/Scripts/webkitdirs.pm
+===================================================================
+--- WebKitTools/Scripts/webkitdirs.pm	(revision 48592)
++++ WebKitTools/Scripts/webkitdirs.pm	(working copy)
+@@ -1180,7 +1180,7 @@ sub qtMakeCommand($)
+         return "nmake";
+     }
+ 
+-    return "make";
++    return "make -j8";
+ }
+ 
+ sub autotoolsFlag($$)

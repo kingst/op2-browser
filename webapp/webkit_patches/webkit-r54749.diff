@@ -1,0 +1,153 @@
+Only in WebKit: #patch#
+diff -rup WebKit-r54749/WebCore/platform/network/qt/QNetworkReplyHandler.cpp WebKit/WebCore/platform/network/qt/QNetworkReplyHandler.cpp
+--- WebCore/platform/network/qt/QNetworkReplyHandler.cpp	2010-02-12 22:57:48.000000000 -0600
++++ WebCore/platform/network/qt/QNetworkReplyHandler.cpp	2010-05-06 05:32:57.000000000 -0500
+@@ -79,7 +79,6 @@ void FormDataIODevice::moveToNextElement
+         m_currentFile = new QFile;
+ 
+     m_currentFile->setFileName(m_formElements[0].m_filename);
+-    m_currentFile->open(QFile::ReadOnly);
+ }
+ 
+ // m_formElements[0] is the current item. If the destination buffer is
+@@ -103,11 +102,13 @@ qint64 FormDataIODevice::readData(char* 
+             if (m_currentDelta == element.m_data.size())
+                 moveToNextElement();
+         } else {
+-            const QByteArray data = m_currentFile->read(available);
+-            memcpy(destination+copied, data.constData(), data.size());
+-            copied += data.size();
++            QByteArray name = (QLatin1String("*OPFNBEGIN#") + m_currentFile->fileName() + QLatin1String("*OPFNEND#")).toLatin1();
++            const qint64 toCopy = qMin<qint64>(available, name.size() - m_currentDelta);
++            memcpy(destination+copied, name.constData()+m_currentDelta, toCopy);
++            m_currentDelta += toCopy;
++            copied += toCopy;
+ 
+-            if (m_currentFile->atEnd() || !m_currentFile->isOpen())
++            if (m_currentDelta == name.size())
+                 moveToNextElement();
+         }
+     }
+Only in WebKit/WebCore/platform/network/qt: QNetworkReplyHandler.cpp.orig
+Only in WebKit/WebCore/platform/network/qt: QNetworkReplyHandler.cpp.rej
+diff -rup WebKit-r54749/WebKit/qt/Api/qwebpage.cpp WebKit/WebKit/qt/Api/qwebpage.cpp
+--- WebKit/qt/Api/qwebpage.cpp	2010-02-12 22:57:49.000000000 -0600
++++ WebKit/qt/Api/qwebpage.cpp	2010-05-06 05:39:08.000000000 -0500
+@@ -232,6 +232,15 @@ void QWebPageWidgetClient::updateCursor(
+ {
+     view->setCursor(cursor);
+ }
++#ifdef OP_EXTENDED
++bool QWebPagePrivate::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData)
++{
++    if (insideOpenCall
++        && frame == mainFrame)
++        return true;
++    return q->acceptNavigationRequest(frame, request, type, postData);
++}
++#endif
+ #endif
+ 
+ QPalette QWebPageWidgetClient::palette() const
+@@ -2190,6 +2199,12 @@ void QWebPage::setPreferredContentsSize(
+ 
+     \sa createWindow()
+ */
++#ifdef OP_EXTENDED
++bool QWebPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData) {
++    return acceptNavigationRequest(frame, request, type);
++}
++#endif
++
+ bool QWebPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type)
+ {
+     Q_UNUSED(frame)
+Only in WebKit/WebKit/qt/Api: qwebpage.cpp~
+Only in WebKit/WebKit/qt/Api: qwebpage.cpp.orig
+Only in WebKit/WebKit/qt/Api: qwebpage.cpp.rej
+diff -rup WebKit-r54749/WebKit/qt/Api/qwebpage.h WebKit/WebKit/qt/Api/qwebpage.h
+--- WebKit/qt/Api/qwebpage.h	2010-02-12 22:57:49.000000000 -0600
++++ WebKit/qt/Api/qwebpage.h	2010-05-06 05:36:57.000000000 -0500
+@@ -21,6 +21,8 @@
+ #ifndef QWEBPAGE_H
+ #define QWEBPAGE_H
+ 
++#define OP_EXTENDED
++
+ #include "qwebsettings.h"
+ #include "qwebkitglobal.h"
+ 
+@@ -337,6 +339,9 @@ protected:
+     virtual QObject *createPlugin(const QString &classid, const QUrl &url, const QStringList &paramNames, const QStringList &paramValues);
+ 
+     virtual bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, NavigationType type);
++#ifdef OP_EXTENDED
++     virtual bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, NavigationType type, const QByteArray& postData);
++#endif
+     virtual QString chooseFile(QWebFrame *originatingFrame, const QString& oldFile);
+     virtual void javaScriptAlert(QWebFrame *originatingFrame, const QString& msg);
+     virtual bool javaScriptConfirm(QWebFrame *originatingFrame, const QString& msg);
+Only in WebKit/WebKit/qt/Api: qwebpage.h~
+Only in WebKit/WebKit/qt/Api: qwebpage.h.orig
+Only in WebKit/WebKit/qt/Api: qwebpage.h.rej
+diff -rup WebKit-r54749/WebKit/qt/Api/qwebpage_p.h WebKit/WebKit/qt/Api/qwebpage_p.h
+--- WebKit/qt/Api/qwebpage_p.h	2010-02-12 22:57:49.000000000 -0600
++++ WebKit/qt/Api/qwebpage_p.h	2010-05-06 05:32:57.000000000 -0500
+@@ -159,6 +159,9 @@ public:
+     bool clickCausedFocus;
+ 
+     bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type);
++#ifdef OP_EXTENDED
++    bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData);
++#endif
+     QNetworkAccessManager *networkManager;
+ 
+     bool forwardUnsupportedContent;
+Only in WebKit/WebKit/qt/Api: qwebpage_p.h.orig
+diff -rup WebKit-r54749/WebKit/qt/Api/qwebsettings.cpp WebKit/WebKit/qt/Api/qwebsettings.cpp
+--- WebKit/qt/Api/qwebsettings.cpp	2010-02-12 22:57:49.000000000 -0600
++++ WebKit/qt/Api/qwebsettings.cpp	2010-05-06 05:32:57.000000000 -0500
+@@ -963,8 +963,9 @@ void QWebSettings::enablePersistentStora
+     QString storagePath;
+ 
+     if (path.isEmpty()) {
++#ifndef QT_NO_DESKTOPSERVICES
+         storagePath = QDesktopServices::storageLocation(QDesktopServices::DataLocation);
+-
++#endif
+         if (storagePath.isEmpty())
+             storagePath = WebCore::pathByAppendingComponent(QDir::homePath(), QCoreApplication::applicationName());
+     } else
+Only in WebKit/WebKit/qt/Api: qwebsettings.cpp.orig
+diff -rup WebKit-r54749/WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp WebKit/WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp
+--- WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp	2010-02-12 22:59:24.000000000 -0600
++++ WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp	2010-05-06 05:32:57.000000000 -0500
+@@ -978,7 +978,12 @@ void FrameLoaderClientQt::dispatchDecide
+     QNetworkRequest r(request.toNetworkRequest(m_webFrame));
+     QWebPage* page = m_webFrame->page();
+ 
++#ifdef OP_EXTENDED
++    QByteArray postData = request.httpBody() ? QString(request.httpBody()->flattenToString()).toLatin1() : QByteArray();
++    if (!page->d->acceptNavigationRequest(0, r, QWebPage::NavigationType(action.type()), postData)) {
++#else
+     if (!page->d->acceptNavigationRequest(0, r, QWebPage::NavigationType(action.type()))) {
++#endif
+         if (action.type() == NavigationTypeFormSubmitted || action.type() == NavigationTypeFormResubmitted)
+             m_frame->loader()->resetMultipleFormSubmissionProtection();
+ 
+@@ -999,7 +1004,12 @@ void FrameLoaderClientQt::dispatchDecide
+     QNetworkRequest r(request.toNetworkRequest(m_webFrame));
+     QWebPage*page = m_webFrame->page();
+ 
++#ifdef OP_EXTENDED
++    QByteArray postData = request.httpBody() ? QString(request.httpBody()->flattenToString()).toLatin1() : QByteArray();
++    if (!page->d->acceptNavigationRequest(m_webFrame, r, QWebPage::NavigationType(action.type()), postData)) {
++#else
+     if (!page->d->acceptNavigationRequest(m_webFrame, r, QWebPage::NavigationType(action.type()))) {
++#endif
+         if (action.type() == NavigationTypeFormSubmitted || action.type() == NavigationTypeFormResubmitted)
+             m_frame->loader()->resetMultipleFormSubmissionProtection();
+ 
+Only in WebKit/WebKit/qt/WebCoreSupport: FrameLoaderClientQt.cpp.orig
+Only in WebKit/WebKit/qt/WebCoreSupport: FrameLoaderClientQt.cpp.rej
+Only in WebKit: WebKitBuild

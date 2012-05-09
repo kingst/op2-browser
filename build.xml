@@ -1,0 +1,127 @@
+<project default="compile">
+
+    <target name="clean">
+        <delete dir="build"/>
+        <delete>
+            <fileset dir="." defaultexcludes="no" includes="**/*~"/> 
+        </delete>
+    </target>
+
+    <target name="dirs">
+        <mkdir dir="build/jar"/>
+    </target>
+
+    <target name="nochrome-ui" depends="shared_java">
+        <mkdir dir="build/nochrome-ui"/>
+        <javac srcdir="nochrome-ui" destdir="build/nochrome-ui" debug="on">
+            <classpath>
+                <pathelement location="build/jar/shared_java.jar"/>
+            </classpath>
+        </javac>
+        <jar destfile="build/jar/nochrome-ui.jar" basedir="build/nochrome-ui">
+            <manifest>
+                <attribute name="Main-Class" value="NoChrome"/>
+                <attribute name="Class-Path" value="shared_java.jar"/>
+            </manifest>
+        </jar>
+    </target>
+
+<!--
+    <target name="ui" depends="shared_java">
+        <mkdir dir="build/ui"/>
+        <javac srcdir="ui" destdir="build/ui" debug="on">        
+            <classpath>
+                <pathelement location="build/jar/shared_java.jar"/>
+            </classpath>
+        </javac>
+        <mkdir dir="build/ui/images"/>
+        <copy file="ui/Stop.gif" todir="build/ui/images" />
+        <copy file="ui/Reload.png" todir="build/ui/images" />
+        <copy file="ui/Back.png" todir="build/ui/images" />
+        <copy file="ui/Forward.png" todir="build/ui/images" />
+        <copy file="ui/Home.png" todir="build/ui/images" />
+        <jar destfile="build/jar/ui.jar" basedir="build/ui/">
+            <manifest>
+                <attribute name="Main-Class" value="IBrowser"/>
+                <attribute name="Class-Path" value="shared_java.jar"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="forensics" depends="shared_java">
+        <mkdir dir="build/forensics"/>
+        <javac srcdir="forensics" destdir="build/forensics"
+               debug="on">
+          <classpath>
+            <pathelement location="build/jar/shared_java.jar"/>
+          </classpath>
+        </javac>
+        <jar destfile="build/jar/forensics.jar" basedir="build/forensics">
+          <manifest>
+            <attribute name="Main-Class" value="Forensics"/>
+            <attribute name="Class-Path" value="shared_java.jar"/>
+          </manifest>
+        </jar>
+    </target>
+
+    <target name="cache" depends="shared_java">
+        <mkdir dir="build/cache"/>
+        <javac srcdir="cache" destdir="build/cache" debug="on">
+            <classpath>
+                <pathelement location="build/jar/shared_java.jar"/>
+            </classpath>
+        </javac>
+        <jar destfile="build/jar/cache.jar" basedir="build/cache">
+            <manifest>
+                <attribute name="Main-Class" value="WebCache"/>
+                <attribute name="Class-Path" value="shared_java.jar"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="javascript" depends="shared_java">
+        <mkdir dir="build/javascript"/>
+        <copy file="rhino1_6R7/build/rhino1_6R7/js.jar"
+              todir="build/jar/" />
+        <javac srcdir="javascript" destdir="build/javascript" debug="on">
+            <classpath>
+                <pathelement location="build/jar/js.jar"/>
+                <pathelement location="build/jar/shared_java.jar"/>
+            </classpath>
+        </javac>
+        <jar destfile="build/jar/javascript.jar" basedir="build/javascript">
+            <manifest>
+                <attribute name="Main-Class" value="RunBrowserScript"/>
+                <attribute name="Class-Path" value="js.jar shared_java.jar"/>
+            </manifest>
+        </jar>
+    </target>
+-->
+    <target name="shared_java">
+        <mkdir dir="build/shared_java"/>
+        <javac srcdir="shared_java" destdir="build/shared_java" debug="on"/>
+        <jar destfile="build/jar/shared_java.jar" basedir="build/shared_java"/>
+    </target>
+<!--
+    <target name="webapp" depends="shared_java">
+        <mkdir dir="build/webapp"/>
+        <javac srcdir="webapp" destdir="build/webapp" debug="on">
+            <classpath>
+                <pathelement location="build/jar/shared_java.jar"/>
+            </classpath>
+        </javac>
+        <copy file="webapp/javax/swing/text/htmlmod/default.css" 
+              todir="build/webapp/javax/swing/text/htmlmod/"/>
+        <copy file="webapp/javax/swing/text/htmlmod/parser/html32.bdtd"
+              todir="build/webapp/javax/swing/text/htmlmod/parser/" />
+        <jar destfile="build/jar/webapp.jar" basedir="build/webapp">
+            <manifest>
+                <attribute name="Main-Class" value="webapp.WebApp"/>
+                <attribute name="Class-Path" value="shared_java.jar"/>
+            </manifest>
+        </jar>
+    </target>
+-->
+    <target name="compile" depends="dirs, nochrome-ui, shared_java">
+    </target>
+</project>

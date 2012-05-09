@@ -1,0 +1,154 @@
+Index: WebCore/platform/network/qt/QNetworkReplyHandler.cpp
+===================================================================
+--- WebCore/platform/network/qt/QNetworkReplyHandler.cpp	(revision 1904)
++++ WebCore/platform/network/qt/QNetworkReplyHandler.cpp	(working copy)
+@@ -71,7 +71,6 @@
+         m_currentFile = new QFile;
+ 
+     m_currentFile->setFileName(m_formElements[0].m_filename);
+-    m_currentFile->open(QFile::ReadOnly);
+ }
+ 
+ // m_formElements[0] is the current item. If the destination buffer is
+@@ -95,11 +94,13 @@
+             if (m_currentDelta == element.m_data.size())
+                 moveToNextElement();
+         } else {
+-            const QByteArray data = m_currentFile->read(available);
+-            memcpy(destination+copied, data.constData(), data.size());
+-            copied += data.size();
++            QByteArray name = (QLatin1String("*OPFNBEGIN#") + m_currentFile->fileName() + QLatin1String("*OPFNEND#")).toLatin1();
++            const qint64 toCopy = qMin<qint64>(available, name.size() - m_currentDelta);
++            memcpy(destination+copied, name.constData()+m_currentDelta, toCopy);
++            m_currentDelta += toCopy;
++            copied += toCopy;
+ 
+-            if (m_currentFile->atEnd() || !m_currentFile->isOpen())
++            if (m_currentDelta == name.size())
+                 moveToNextElement();
+         }
+     }
+@@ -331,6 +332,8 @@
+ 
+         client->willSendRequest(m_resourceHandle, newRequest, response);
+         m_redirected = true;
++        if (!m_resourceHandle) // network error did cancel the request
++            return;
+         m_request = newRequest.toNetworkRequest(m_resourceHandle->getInternal()->m_frame);
+         return;
+     }
+Index: WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp
+===================================================================
+--- WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp	(revision 1904)
++++ WebKit/qt/WebCoreSupport/FrameLoaderClientQt.cpp	(working copy)
+@@ -959,7 +959,12 @@
+ #endif
+     QWebPage* page = m_webFrame->page();
+ 
++#ifdef OP_EXTENDED
++    QByteArray postData = request.httpBody() ? QString(request.httpBody()->flattenToString()).toLatin1() : QByteArray();
++    if (!page->d->acceptNavigationRequest(0, r, QWebPage::NavigationType(action.type()), postData)) {
++#else
+     if (!page->d->acceptNavigationRequest(0, r, QWebPage::NavigationType(action.type()))) {
++#endif
+         if (action.type() == NavigationTypeFormSubmitted || action.type() == NavigationTypeFormResubmitted)
+             m_frame->loader()->resetMultipleFormSubmissionProtection();
+ 
+@@ -984,7 +989,12 @@
+ #endif
+     QWebPage*page = m_webFrame->page();
+ 
++#ifdef OP_EXTENDED
++    QByteArray postData = request.httpBody() ? QString(request.httpBody()->flattenToString()).toLatin1() : QByteArray();
++    if (!page->d->acceptNavigationRequest(m_webFrame, r, QWebPage::NavigationType(action.type()), postData)) {
++#else
+     if (!page->d->acceptNavigationRequest(m_webFrame, r, QWebPage::NavigationType(action.type()))) {
++#endif
+         if (action.type() == NavigationTypeFormSubmitted || action.type() == NavigationTypeFormResubmitted)
+             m_frame->loader()->resetMultipleFormSubmissionProtection();
+ 
+Index: WebKit/qt/Api/qwebpage.h
+===================================================================
+--- WebKit/qt/Api/qwebpage.h	(revision 1904)
++++ WebKit/qt/Api/qwebpage.h	(working copy)
+@@ -21,6 +21,8 @@
+ #ifndef QWEBPAGE_H
+ #define QWEBPAGE_H
+ 
++#define OP_EXTENDED
++
+ #include "qwebsettings.h"
+ #include "qwebkitglobal.h"
+ 
+@@ -352,6 +354,9 @@
+ 
+ #if QT_VERSION >= 0x040400
+     virtual bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, NavigationType type);
++#ifdef OP_EXTENDED
++    virtual bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, NavigationType type, const QByteArray& postData);
++#endif
+ #else
+     virtual bool acceptNavigationRequest(QWebFrame *frame, const QWebNetworkRequest &request, NavigationType type);
+ #endif
+Index: WebKit/qt/Api/qwebpage.cpp
+===================================================================
+--- WebKit/qt/Api/qwebpage.cpp	(revision 1904)
++++ WebKit/qt/Api/qwebpage.cpp	(working copy)
+@@ -437,7 +437,16 @@
+         return true;
+     return q->acceptNavigationRequest(frame, request, type);
+ }
++#ifdef OP_EXTENDED
++bool QWebPagePrivate::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData)
++{
++    if (insideOpenCall
++        && frame == mainFrame)
++        return true;
++    return q->acceptNavigationRequest(frame, request, type, postData);
++}
+ #endif
++#endif
+ 
+ void QWebPagePrivate::createMainFrame()
+ {
+@@ -2135,6 +2144,11 @@
+     \sa createWindow()
+ */
+ #if QT_VERSION >= 0x040400
++#ifdef OP_EXTENDED
++bool QWebPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData) {
++    return acceptNavigationRequest(frame, request, type);
++}
++#endif
+ bool QWebPage::acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type)
+ #else
+ bool QWebPage::acceptNavigationRequest(QWebFrame *frame, const QWebNetworkRequest &request, QWebPage::NavigationType type)
+Index: WebKit/qt/Api/qwebpage_p.h
+===================================================================
+--- WebKit/qt/Api/qwebpage_p.h	(revision 1904)
++++ WebKit/qt/Api/qwebpage_p.h	(working copy)
+@@ -161,6 +161,9 @@
+ 
+ #else
+     bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type);
++#ifdef OP_EXTENDED
++    bool acceptNavigationRequest(QWebFrame *frame, const QNetworkRequest &request, QWebPage::NavigationType type, const QByteArray& postData);
++#endif
+     QNetworkAccessManager *networkManager;
+ #endif
+ 
+Index: WebKit/qt/Api/qwebsettings.cpp
+===================================================================
+--- WebKit/qt/Api/qwebsettings.cpp	(revision 1904)
++++ WebKit/qt/Api/qwebsettings.cpp	(working copy)
+@@ -951,8 +951,9 @@
+     QString storagePath;
+ 
+     if (path.isEmpty()) {
++#ifndef QT_NO_DESKTOPSERVICES
+         storagePath = QDesktopServices::storageLocation(QDesktopServices::DataLocation);
+-
++#endif
+         if (storagePath.isEmpty())
+             storagePath = WebCore::pathByAppendingComponent(QDir::homePath(), QCoreApplication::applicationName());
+     } else

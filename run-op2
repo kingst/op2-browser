@@ -1,0 +1,27 @@
+#!/usr/bin/perl -w
+use strict;
+
+# Set paths according to the build system used
+my $libDir = glob("./webapp/WebKit/WebKitBuild/Release/lib");
+my $launcherPath = "./kernel/kernel";
+
+
+$ENV{LD_LIBRARY_PATH} = $ENV{LD_LIBRARY_PATH} ? "$libDir:$ENV{LD_LIBRARY_PATH}" : $libDir;
+$ENV{DYLD_LIBRARY_PATH} = $ENV{DYLD_LIBRARY_PATH} ? "$libDir:$ENV{DYLD_LIBRARY_PATH}" : $libDir;
+
+
+my $numArgs = $#ARGV + 1; 
+
+if ($numArgs >= 1) {
+    my $arg = shift;
+    if ($arg eq "iframe") {
+        $ENV{"OP_IFRAME"} = "YES";
+        exec $launcherPath;
+    } else {
+        exec $launcherPath, $arg;
+    }
+} 
+else { 
+    exec $launcherPath; 
+} 
+

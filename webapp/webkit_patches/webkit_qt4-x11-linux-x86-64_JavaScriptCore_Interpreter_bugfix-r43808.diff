@@ -1,0 +1,17 @@
+Index: JavaScriptCore/interpreter/Interpreter.cpp
+===================================================================
+--- JavaScriptCore/interpreter/Interpreter.cpp	(revision 43808)
++++ JavaScriptCore/interpreter/Interpreter.cpp	(working copy)
+@@ -3113,10 +3113,10 @@
+ 
+             // First step is to copy the "expected" parameters from their normal location relative to the callframe
+             for (; i < inplaceArgs; i++)
+-                argStore[i] = callFrame->registers()[i - RegisterFile::CallFrameHeaderSize - expectedParams];
++                argStore[i] = callFrame->registers()[(int32_t) (i - RegisterFile::CallFrameHeaderSize - expectedParams)];
+             // Then we copy any additional arguments that may be further up the stack ('-1' to account for 'this')
+             for (; i < argCount; i++)
+-                argStore[i] = callFrame->registers()[i - RegisterFile::CallFrameHeaderSize - expectedParams - argCount - 1];
++                argStore[i] = callFrame->registers()[(int32_t) (i - RegisterFile::CallFrameHeaderSize - expectedParams - argCount - 1)];
+         } else if (!arguments.isUndefinedOrNull()) {
+             if (!arguments.isObject()) {
+                 exceptionValue = createInvalidParamError(callFrame, "Function.prototype.apply", arguments, vPC - callFrame->codeBlock()->instructions().begin(), callFrame->codeBlock());
