@@ -12,6 +12,8 @@ else
 LDFLAGS = -lboost_regex-mt -lrt 
 endif
 
+CFLAGS += -I ../webapp/WebKit/WebKitLibraries/WebCoreSQLite3
+
 MOBJS = msgdump.o
 OBJS = main.o Message.o WebAppMgr.o Access.o DomainName.o WebAppCache.o AIOHelper.o
 

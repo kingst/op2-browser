@@ -8,6 +8,7 @@ CONFIG += uitools release
 CONFIG -= app_bundle debug
 unix:LIBS += -lX11
 QT += network
+QT += webkit
 DEPENDPATH += .
 INCLUDEPATH += . \
         ../../kernel/
